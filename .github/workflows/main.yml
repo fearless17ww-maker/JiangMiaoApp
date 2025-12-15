@@ -35,9 +35,8 @@ jobs:
           channel: 'stable'
 
       - name: Build APK
-        # 这里定义了 App 的名称和包名
         run: |
-          flet build apk --project-name "JiangMiaoHabit" --product-name "坚持每一天" --org "com.jiangmiao.habit" --verbose
+          flet build apk --project "JiangMiaoHabit" --product "坚持每一天" --org "com.jiangmiao.habit" --verbose
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
