@@ -36,7 +36,7 @@ jobs:
 
       - name: Build APK
         run: |
-          flet build apk --project "JiangMiaoApp" --product "JiangMiao" --icon "assets/icon.png" --org "com.jiangmiao.habit" --verbose
+          flet build apk --project "JiangMiaoApp" --product "JiangMiao" --org "com.jiangmiao.habit" --verbose
      
       - name: Upload APK
         uses: actions/upload-artifact@v4
