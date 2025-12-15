@@ -6,63 +6,77 @@ import calendar
 import asyncio
 import random
 
+# ================= 兼容性补丁 (开始) =================
+# 自动检测环境：如果你本地是旧版 Flet，自动适配组件名
+if not hasattr(ft, "NavigationDestination"):
+    ft.NavigationDestination = ft.NavigationBarDestination
+# ================= 兼容性补丁 (结束) =================
+
 # --- 颜色配置 ---
 COLOR_PINK_BG = "#FFF0F5"       # 淡粉色背景
 COLOR_PINK_ACCENT = "#FFB6C1"   # 浅粉红
 COLOR_YELLOW = "#FFFACD"        # 柠檬绸色
-COLOR_TEXT = "#5D4037"          # 深褐色 (比之前的深棕更柔和但对比度够)
+COLOR_TEXT = "#5D4037"          # 深褐色
 COLOR_DONE = "#E0E0E0"          # 灰色
 DATA_FILE = "persistence.json"
 
-# 【修改点2】高区分度色板 (High Contrast Palette)
-# 这一组颜色在白色背景上对比明显，且相互之间差异大
+# 高区分度色板
 HABIT_PALETTE = [
-    "#FF5252", # 鲜红
-    "#448AFF", # 亮蓝
-    "#00C853", # 鲜绿
-    "#FFAB00", # 琥珀黄
-    "#AA00FF", # 深紫
-    "#00BCD4", # 青色
-    "#FF4081", # 玫红
-    "#795548", # 棕色
-    "#607D8B", # 蓝灰
-    "#212121", # 黑色 (用于特别严肃的任务)
+    "#FF5252", "#448AFF", "#00C853", "#FFAB00", "#AA00FF", 
+    "#00BCD4", "#FF4081", "#795548", "#607D8B", "#212121", 
 ]
 
 class PersistenceApp:
     def __init__(self, page: ft.Page):
         self.page = page
-        self.page.title = "坚持每一天"
+        self.page.title = "JiangMiao"
         self.page.bgcolor = COLOR_PINK_BG
         self.page.padding = 0
-        self.page.theme = ft.Theme(color_scheme_seed="pink")
+        # 使用 Material 3 风格
+        self.page.theme = ft.Theme(color_scheme_seed="pink", use_material3=True)
         
         # 初始化数据
         self.data = self.load_data()
         
-        # 定义底部导航栏
-        self.tabs = ft.Tabs(
-            selected_index=0,
-            animation_duration=300,
-            indicator_color=COLOR_PINK_ACCENT,
-            label_color=COLOR_PINK_ACCENT,
-            unselected_label_color="grey",
+        # --- UI 组件初始化 ---
+        
+        # 1. 底部导航栏
+        # 【修改点】：图标全部改成字符串，兼容所有版本
+        self.nav_bar = ft.NavigationBar(
+            selected_index=1,
             on_change=self.on_tab_change,
-            tabs=[
-                ft.Tab(text="今日坚持", icon="check_circle_outline"),
-                ft.Tab(text="成就统计", icon="bar_chart"),
-                ft.Tab(text="时光足迹", icon="calendar_month"),
-            ],
+            bgcolor="white",
+            destinations=[
+                # index 0: 统计
+                ft.NavigationDestination(
+                    icon="bar_chart_outlined",      # 使用字符串
+                    selected_icon="bar_chart",      # 使用字符串
+                    label="统计"
+                ),
+                # index 1: 今日坚持
+                ft.NavigationDestination(
+                    icon="check_circle_outline",    # 使用字符串
+                    selected_icon="check_circle",   # 使用字符串
+                    label="打卡",
+                ),
+                # index 2: 日历
+                ft.NavigationDestination(
+                    icon="calendar_month_outlined", # 使用字符串
+                    selected_icon="calendar_month", # 使用字符串
+                    label="日历"
+                ),
+            ]
         )
 
-        # 定义悬浮按钮 (FAB)
+        # 2. 悬浮按钮 (FAB)
         self.fab = ft.FloatingActionButton(
-            icon="add",
+            icon="add",  # 使用字符串
             bgcolor=COLOR_PINK_ACCENT,
             on_click=self.open_add_dialog,
+            shape=ft.CircleBorder(),
         )
 
-        # 全局主容器
+        # 3. 内容容器
         self.content_container = ft.Container(
             expand=True,
             padding=10
@@ -74,8 +88,6 @@ class PersistenceApp:
         try:
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                # --- 数据迁移：确保每个习惯都有颜色 ---
-                # 如果是旧数据，可能颜色是淡色，这里不强制覆盖，但新建的会用新颜色
                 for h in data.get("habits", []):
                     if "color" not in h:
                         h["color"] = random.choice(HABIT_PALETTE)
@@ -108,7 +120,6 @@ class PersistenceApp:
                 spacing=20,
                 controls=[
                     ft.Image(src=img_src, width=150, height=150, fit=ft.ImageFit.CONTAIN, border_radius=75),
-                    
                     ft.Container(
                         width=self.page.width * 0.66 if self.page.width else 300, 
                         content=ft.Column(
@@ -120,7 +131,6 @@ class PersistenceApp:
                             ]
                         )
                     ),
-                    
                     ft.ProgressRing(color="white"),
                 ]
             )
@@ -134,33 +144,31 @@ class PersistenceApp:
 
     # --- 2. 主界面架构 ---
     def init_main_ui(self):
-        self.page.floating_action_button = self.fab
+        self.page.navigation_bar = self.nav_bar 
+        self.page.floating_action_button = self.fab 
+        
+        # 使用 SafeArea
         self.page.add(
-            ft.Column(
-                expand=True,
-                spacing=0,
-                controls=[
-                    self.content_container, 
-                    ft.Container(
-                        bgcolor="white",
-                        content=self.tabs,
-                        padding=5,
-                        border_radius=ft.border_radius.only(top_left=20, top_right=20)
-                    )
-                ]
+            ft.SafeArea(
+                content=ft.Column(
+                    expand=True,
+                    controls=[
+                        self.content_container
+                    ]
+                )
             )
         )
         self.render_home()
 
     def on_tab_change(self, e):
         index = e.control.selected_index
-        self.page.floating_action_button.visible = (index == 0)
+        self.page.floating_action_button.visible = (index == 1)
         self.page.update()
 
         if index == 0:
-            self.render_home()
-        elif index == 1:
             self.render_stats()
+        elif index == 1:
+            self.render_home()
         elif index == 2:
             self.render_calendar()
 
@@ -172,7 +180,6 @@ class PersistenceApp:
 
         controls_list = []
 
-        # 标题
         controls_list.append(
             ft.Container(
                 bgcolor=COLOR_YELLOW,
@@ -186,7 +193,6 @@ class PersistenceApp:
 
         controls_list.append(ft.Text("待完成", color="grey500"))
         
-        # 待完成列表
         for habit in habits:
             if habit['name'] not in history:
                 controls_list.append(self.create_habit_card(habit, is_done=False))
@@ -194,12 +200,11 @@ class PersistenceApp:
         controls_list.append(ft.Divider(height=20, color="transparent"))
         controls_list.append(ft.Text("已完成", color="grey500"))
 
-        # 已完成列表
         for habit in habits:
             if habit['name'] in history:
                 controls_list.append(self.create_habit_card(habit, is_done=True))
         
-        controls_list.append(ft.Container(height=50))
+        controls_list.append(ft.Container(height=100))
 
         self.content_container.content = ft.Column(
             expand=True,
@@ -215,29 +220,21 @@ class PersistenceApp:
         target = habit_data['target']
         color = habit_data.get('color', COLOR_PINK_ACCENT)
 
-        # 长按删除事件
         def on_long_press_card(e):
             def confirm_delete(e):
-                # 【修改点1】彻底删除逻辑
-                
-                # 1. 从定义列表中移除
                 self.data['habits'] = [h for h in self.data['habits'] if h['name'] != name]
-                
-                # 2. 从所有历史记录中移除该事项
                 history = self.data['history']
-                # 遍历所有日期
                 for date_key in list(history.keys()):
                     if name in history[date_key]:
                         history[date_key].remove(name)
-                        # 如果这天没别的任务了，可选保留空列表或删除 key，这里保留空列表比较安全
                 
                 self.save_data()
                 self.page.close(dlg)
-                self.render_home() # 刷新主页
+                self.render_home()
 
             dlg = ft.AlertDialog(
                 title=ft.Text("删除确认"),
-                content=ft.Text(f"确定要删除「{name}」吗？\n注意：与之相关的统计和日历记录也会被一并清除。"),
+                content=ft.Text(f"确定要删除「{name}」吗？\n相关记录也将被清除。"),
                 actions=[
                     ft.TextButton("取消", on_click=lambda e: self.page.close(dlg)),
                     ft.TextButton("删除", on_click=confirm_delete, style=ft.ButtonStyle(color="red")),
@@ -245,15 +242,12 @@ class PersistenceApp:
             )
             self.page.open(dlg)
 
-        # 点击事件
         async def on_click_card(e):
             ctr = e.control
             ctr.opacity = 0
             ctr.scale = 0.9
             ctr.update()
-            
             await asyncio.sleep(0.4)
-            
             if is_done:
                 self.unmark_done(name)
             else:
@@ -271,13 +265,7 @@ class PersistenceApp:
             ink=True, 
             content=ft.Row(
                 controls=[
-                    # 颜色条
-                    ft.Container(
-                        width=8, 
-                        height=45, 
-                        bgcolor=color if not is_done else "grey", 
-                        border_radius=4
-                    ),
+                    ft.Container(width=8, height=45, bgcolor=color if not is_done else "grey", border_radius=4),
                     ft.Column(
                         expand=True,
                         spacing=2,
@@ -286,6 +274,7 @@ class PersistenceApp:
                             ft.Text(f"目标: {target}", size=12, color="grey")
                         ]
                     ),
+                    # 【修改点】：使用字符串 "check_circle"
                     ft.Icon(
                         name="check_circle" if is_done else "radio_button_unchecked",
                         color=color if is_done else "grey400"
@@ -299,11 +288,9 @@ class PersistenceApp:
         today = str(datetime.date.today())
         if today not in self.data["history"]:
             self.data["history"][today] = []
-        
         if name not in self.data["history"][today]:
             self.data["history"][today].append(name)
             self.save_data()
-        
         self.render_home()
         self.check_all_complete()
 
@@ -319,14 +306,11 @@ class PersistenceApp:
         today = str(datetime.date.today())
         history = self.data["history"].get(today, [])
         all_habits = [h['name'] for h in self.data['habits']]
-        
         if all(h in history for h in all_habits) and len(all_habits) > 0:
             dlg = ft.AlertDialog(
                 title=ft.Text("太棒啦！"),
                 content=ft.Text("jiang小喵知道你一定能行！\n今日任务全部达成！"),
-                actions=[
-                    ft.TextButton("开心收下", on_click=lambda e: self.page.close(dlg))
-                ],
+                actions=[ft.TextButton("开心收下", on_click=lambda e: self.page.close(dlg))],
                 actions_alignment=ft.MainAxisAlignment.END,
             )
             self.page.open(dlg)
@@ -340,7 +324,6 @@ class PersistenceApp:
 
         def add_task(e):
             if name_field.value:
-                # 随机分配一个高对比度颜色
                 new_color = random.choice(HABIT_PALETTE)
                 self.data['habits'].append({
                     "name": name_field.value,
@@ -361,14 +344,12 @@ class PersistenceApp:
         )
         self.page.open(dlg)
 
-    # --- 5. 统计与日历 ---
+    # --- 5. 统计页面 ---
     def render_stats(self):
-        # 重新计算统计，只计算当前存在的 habits
         stats = {}
         history = self.data["history"]
         current_habits_names = [h['name'] for h in self.data['habits']]
         
-        # 只统计当前列表中存在的习惯
         for date_str, done_list in history.items():
             for item in done_list:
                 if item in current_habits_names:
@@ -405,10 +386,10 @@ class PersistenceApp:
         )
         self.page.update()
 
+    # --- 6. 日历页面 ---
     def render_calendar(self):
         today = datetime.date.today()
         cal = calendar.monthcalendar(today.year, today.month)
-        
         weeks = ft.Row([ft.Text(d, width=40, text_align="center", size=12, color="grey") for d in ["一","二","三","四","五","六","日"]], alignment=ft.MainAxisAlignment.CENTER)
         
         grid_col = ft.Column(controls=[
@@ -417,7 +398,6 @@ class PersistenceApp:
         ], spacing=10)
 
         history = self.data["history"]
-        # 仅获取当前存在的习惯的颜色
         habit_color_map = {h['name']: h.get('color', COLOR_PINK_ACCENT) for h in self.data['habits']}
         current_habits_names = list(habit_color_map.keys())
 
@@ -428,23 +408,16 @@ class PersistenceApp:
                     row.controls.append(ft.Container(width=42, height=50))
                 else:
                     date_str = f"{today.year}-{today.month:02d}-{day:02d}" 
-                    formatted_date = datetime.date(today.year, today.month, day)
-                    key = str(formatted_date)
-                    
+                    key = str(datetime.date(today.year, today.month, day))
                     raw_done_items = history.get(key, [])
-                    # 过滤掉已删除的习惯
                     done_items = [item for item in raw_done_items if item in current_habits_names]
                     
-                    # 生成颜色点
                     dots_row = ft.Row(wrap=True, spacing=2, run_spacing=2, alignment=ft.MainAxisAlignment.CENTER, width=38)
                     for item_name in done_items:
                         item_color = habit_color_map.get(item_name, "grey")
-                        dots_row.controls.append(
-                            ft.Container(width=5, height=5, bgcolor=item_color, border_radius=2.5)
-                        )
+                        dots_row.controls.append(ft.Container(width=5, height=5, bgcolor=item_color, border_radius=2.5))
                     
                     is_today = (key == str(today))
-                    
                     day_container = ft.Container(
                         content=ft.Column(
                             spacing=2,
@@ -455,10 +428,7 @@ class PersistenceApp:
                                 dots_row
                             ]
                         ),
-                        width=42, 
-                        height=50, 
-                        bgcolor="white", 
-                        border_radius=8,
+                        width=42, height=50, bgcolor="white", border_radius=8,
                         border=ft.border.all(1.5, COLOR_PINK_ACCENT) if is_today else None
                     )
                     row.controls.append(day_container)
